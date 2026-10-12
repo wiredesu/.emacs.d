@@ -40,7 +40,7 @@
         mac-option-modifier nil
         mac-right-option-modifier 'alt)
 
-(setq xterm-extra-capabilities '(getSelection setSelection modifyOtherKeys))
+(setq xterm-extra-capabilities '(modifyOtherKeys))
 
 (setq package-archives '(("melpa" . "https://melpa.org/packages/")
                          ("elpa"  . "https://elpa.gnu.org/packages/")
@@ -58,6 +58,10 @@
 
 (use-package undo-fu)
 
+(use-package xclip
+  :config
+  (xclip-mode 1))
+
 (use-package evil
   :init
   (setq evil-want-keybinding nil)
@@ -72,7 +76,9 @@
 (evil-define-key '(normal visual) 'global (kbd "<leader>e") 'dired-jump)
 (evil-define-key '(normal visual) 'global (kbd "<leader>d") 'dired-jump-other-window)
 (evil-define-key '(normal visual) 'global (kbd "<leader>'") 'consult-ripgrep)
-(evil-define-key '(normal visual) 'global (kbd "<leader>ff") 'find-file)
+(evil-define-key '(normal visual) 'global (kbd "<leader><leader>") 'find-file)
+(evil-define-key '(normal visual) 'global (kbd "<leader>ff") 'project-find-file)
+(evil-define-key '(normal visual) 'global (kbd "<leader>fd") 'dired)
 (evil-define-key '(normal visual) 'global (kbd "<leader>fp") 'project-switch-project)
 (evil-define-key '(normal visual) 'global (kbd "<leader>fw") 'find-file-other-window)
 (evil-define-key '(normal visual) 'global (kbd "<leader>fr") 'consult-recent-file)
@@ -151,9 +157,10 @@
     (kbd "a")   #'dired-create-empty-file
     (kbd "A")   #'dired-create-directory))
 
-(add-hook 'rust-mode-hook
-          (lambda ()
-            (add-hook 'before-save-hook #'eglot-format-buffer nil t)))
+(dolist (hook '(rust-mode-hook c-mode-hook c++-mode-hook c-ts-mode-hook c++-ts-mode-hook))
+  (add-hook hook
+            (lambda ()
+              (add-hook 'before-save-hook #'eglot-format-buffer nil t))))
 
 (define-derived-mode typst-mode text-mode "Typst")
 (add-to-list 'auto-mode-alist '("\\.typ\\'" . typst-mode))
@@ -161,11 +168,14 @@
 (use-package eglot
   :ensure nil
   :hook ((rust-mode . eglot-ensure)
-         (typst-mode . eglot-ensure)
          (nix-mode . eglot-ensure)
+         ((c-mode c++-mode c-ts-mode c++-ts-mode) . eglot-ensure)
+         (typst-mode . eglot-ensure)
+         ((python-mode python-ts-mode) . eglot-ensure)
          (tuareg-mode . eglot-ensure))
   :custom
   (eglot-autoshutdown t)
+  (eglot-extend-to-xref t)
   :config
   (setq completion-category-overrides
         '((eglot (styles basic))
@@ -181,7 +191,9 @@
   (add-to-list 'eglot-server-programs
                '(typst-mode . ("tinymist")))
   (add-to-list 'eglot-server-programs
-               '(nix-mode . ("nixd"))))
+               '(nix-mode . ("nixd")))
+  (add-to-list 'eglot-server-programs
+               '((python-mode python-ts-mode) . ("pyright-langserver" "--stdio"))))
 
 (add-hook 'typst-mode-hook
           (lambda ()
@@ -192,13 +204,15 @@
 (evil-define-key '(normal visual) 'global (kbd "<leader>ca") 'eglot-code-actions)
 (evil-define-key '(normal visual) 'global (kbd "<leader>cr") 'eglot-rename)
 (evil-define-key '(normal visual) 'global (kbd "<leader>cd") 'flymake-show-buffer-diagnostics)
-
+(evil-define-key '(normal visual) 'global (kbd "<leader>cc") 'compile)
+(evil-define-key '(normal visual) 'global (kbd "<leader>cC") 'recompile)
 (use-package rust-mode)
 (use-package nix-mode)
 (use-package tuareg)
 
 (use-package vterm)
-(evil-define-key 'normal 'global (kbd "SPC o t") 'vterm-other-window)
+(evil-define-key 'normal 'global (kbd "SPC t t") 'vterm)
+(evil-define-key 'normal 'global (kbd "SPC t s") 'vterm-other-window)
 
 (use-package magit)
 
@@ -219,10 +233,5 @@
     (save-buffer))
   (kill-buffer-and-window))
 
-(use-package ef-themes
-  :init
-  (ef-themes-take-over-modus-themes-mode 1)
-  :config
-  (setq modus-themes-mixed-fonts nil)
-  (setq modus-themes-italic-constructs nil)
-  (modus-themes-load-theme 'ef-dark))
+(use-package catppuccin-theme)
+(load-theme 'catppuccin :no-confirm)
